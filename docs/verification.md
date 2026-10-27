@@ -1,7 +1,8 @@
 # Проверка первого релиза — 2026-10-27
 
 Локальная проверка завершена. Отдельный удалённый результат — в required
-Quality gate pull request; локальные команды его не заменяют.
+[Quality gate PR #3](https://github.com/SosnovichIvan/infra-deck/pull/3);
+локальные команды его не заменяют.
 
 Проверено:
 

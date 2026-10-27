@@ -11,10 +11,12 @@
 - [x] JWE browser envelope, session nonce, AEAD storage, redacted outputs.
 - [x] Dark/light Tailwind UI, shared selects, responsive and keyboard interaction.
 - [x] Локальные unit/integration/contract/browser проверки и блокирующий CI (см. quality).
-- [ ] Получить успешный удалённый Quality gate в PR.
 - [ ] Подключить собственный Telegram bot/webhook/proxy и выполнить production приёмку.
 - [ ] Выпустить версионный тег из main после успешного PR-процесса.
 
 Эксплуатационная настройка требует отдельных секретов InfraDeck; credentials
 из planerBot/vpn_proxy_server не копируются. Работы над будущими agents,
 Grafana, resource telemetry и migrations сервисов не входят в этот выпуск.
+
+Удалённая приёмка подтверждается обязательным Quality gate конкретного
+[PR первого релиза](https://github.com/SosnovichIvan/infra-deck/pull/3).
