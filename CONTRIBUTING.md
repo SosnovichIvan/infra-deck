@@ -18,7 +18,7 @@
 Новый runtime и его реальные проверки добавляются одним PR. Не отмечайте
 planned проверки пройденными. Build для проверки допустим, publish/deploy
 и production migrations в PR запрещены. Версионные релизы — только по тегу
-MAJOR.MINOR.PATCH на коммите main, после реализации отдельного release workflow.
+MAJOR.MINOR.PATCH на коммите main через .github/workflows/release.yml.
 
 Bootstrap: первый коммит только с README создаёт новые ветки до защиты;
 основа проекта доставляется последующим PR с checks. Это однократная

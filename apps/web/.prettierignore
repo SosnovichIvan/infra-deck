@@ -1,0 +1,4 @@
+src/shared/api/schema.d.ts
+coverage
+.verification
+node_modules

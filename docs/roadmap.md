@@ -1,23 +1,20 @@
-# План реализации
+# Задачи первого релиза
 
-Все этапы planned. Каждый реализуется отдельными небольшими PR с тестами.
+- [x] Контракты API, модель данных и первая PostgreSQL migration.
+- [x] Регистрация, Argon2id, tenant/owner isolation, CSRF/session cookies.
+- [x] Привязка Telegram через authenticated webhook и numeric Telegram ID.
+- [x] Логин/пароль + одноразовый 30-секундный Telegram OTP, форма и resend.
+- [x] Серверные лимиты, atomic one-use OTP, delivery failure, recovery codes.
+- [x] Проекты: список карточек, создание, редактирование, удаление.
+- [x] Серверы в проекте: CRUD, VPS/VM, password/key/certificate.
+- [x] SSH host key confirmation, authentication, short-lived one-use proof.
+- [x] JWE browser envelope, session nonce, AEAD storage, redacted outputs.
+- [x] Dark/light Tailwind UI, shared selects, responsive and keyboard interaction.
+- [x] Локальные unit/integration/contract/browser проверки и блокирующий CI (см. quality).
+- [ ] Получить успешный удалённый Quality gate в PR.
+- [ ] Подключить собственный Telegram bot/webhook/proxy и выполнить production приёмку.
+- [ ] Выпустить версионный тег из main после успешного PR-процесса.
 
-1. Выбрать стек ADR, версии, Linux targets и масштаб. Добавить API/worker,
-   PostgreSQL harness, OpenAPI и миграции с проверками пустой/заполненной БД.
-2. Identity и tenant isolation. Регистрация, вход/выход, формы и реальная
-   browser → backend → test DB проверка в Cypress.
-3. Реестр серверов, зашифрованные credentials, KMS adapter и SSH bootstrap
-   на одноразовой VM. Тестировать отказ/повтор без production credentials.
-4. Agent enrollment/mTLS, heartbeat, discovery Linux/systemd и Docker/Compose,
-   observed/stale/unknown в UI; compatibility/contract и upgrade tests.
-5. Telemetry, отдельные определения registered/active users, dashboard binding
-   и Grafana authorization; объяснимые capacity recommendations.
-6. Migration plan и preflight; сначала один stateless adapter с cutover/recovery.
-   Затем stateful adapter с consistency, backup/restore и failure injection.
-7. End-to-end staging, threat review, нагрузочные измерения, recovery rehearsal,
-   runbooks и релиз по тегу из main.
-
-При реализации любого runtime одновременно заменить planned в матрице на
-реальные команды, включить их в Quality gate и измерить coverage отдельно.
-Приёмка этапа с UI включает loading/empty/error/stale, keyboard/focus и
-responsive состояния. Синтетические данные и одноразовые узлы обязательны.
+Эксплуатационная настройка требует отдельных секретов InfraDeck; credentials
+из planerBot/vpn_proxy_server не копируются. Работы над будущими agents,
+Grafana, resource telemetry и migrations сервисов не входят в этот выпуск.

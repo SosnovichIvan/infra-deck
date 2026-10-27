@@ -1,0 +1,48 @@
+name: Tagged release artifacts
+on:
+  push:
+    tags: ['*.*.*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Require a version tag on main history
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os,re,tomllib,json
+          if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)',os.environ['TAG']):
+              raise SystemExit('Invalid immutable version tag')
+          if tomllib.load(open('pyproject.toml','rb'))['project']['version'] != os.environ['TAG']:
+              raise SystemExit('Python version must match tag')
+          if json.load(open('apps/web/package.json'))['version'] != os.environ['TAG']:
+              raise SystemExit('Web version must match tag')
+          PY
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - run: pipx install --force uv==0.13.6
+      - run: uv sync --frozen
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.12.0
+      - run: npm ci --prefix apps/web
+      - name: Build versioned artifacts
+        run: |
+          uv build --wheel
+          cd apps/web && npm exec -- vite build --outDir dist && cd ../..
+          tar -C apps/web/dist -czf dist/infradeck-web.tar.gz .
+          cd dist
+          sha256sum ./* > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: infradeck-${{ github.ref_name }}
+          path: dist/
+          retention-days: 30
