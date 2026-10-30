@@ -22,3 +22,7 @@ done
 if ! iptables -C DOCKER-USER -s "$api_ip" -j INFRADECK-EGRESS 2>/dev/null; then
     iptables -I DOCKER-USER 1 -s "$api_ip" -j INFRADECK-EGRESS
 fi
+# Packets addressed to the Docker host traverse INPUT, not FORWARD/DOCKER-USER.
+if ! iptables -C INPUT -s "$api_ip" -j INFRADECK-EGRESS 2>/dev/null; then
+    iptables -I INPUT 1 -s "$api_ip" -j INFRADECK-EGRESS
+fi
