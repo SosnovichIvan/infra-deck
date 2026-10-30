@@ -24,3 +24,13 @@
 production HTTPS, VPS credentials/network policy, restore backup с key files,
 нагрузка, production SLO. Ротация Telegram и KMS adapter отсутствуют в v1.
 Никаких реальных ключей, бот-токенов, сообщений или production миграций в tests.
+# Production packaging verification — 2026-10-30
+
+Локально scripts/production-smoke.sh прошёл на синтетических данных: сборка API/web/proxy,
+инициализация PostgreSQL17 с раздельными ролями, двукратная migration, чтение таблиц
+ролью app без superuser/CREATEDB/CREATEROLE/CREATE schema, API UID10001, web health,
+SPA fallback и HTTP401 для /api/auth/me. SSH proxy image дополнительно проверен
+через ssh -G без внешнего подключения. Production container smoke включён в Quality gate.
+make check (9 tests), actionlint1.7.7 и shell syntax checks прошли. Эти проверки
+не являются доказательством реальной Telegram-доставки или production deployment.
+

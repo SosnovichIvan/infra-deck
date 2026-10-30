@@ -64,7 +64,7 @@ services:
     build: {context: .., dockerfile: deploy/web.Dockerfile}
     ports: ["127.0.0.1:18080:8080"]
     tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
-    networks: [frontend]
+    networks: [frontend, edge]
     depends_on:
       api: {condition: service_healthy}
     healthcheck:
@@ -121,6 +121,7 @@ networks:
   database: {internal: true}
   frontend: {internal: true}
   telegram: {internal: true}
+  edge:
   egress:
     ipam:
       config: [{subnet: "${INFRADECK_EGRESS_SUBNET:-172.29.40.0/24}"}]

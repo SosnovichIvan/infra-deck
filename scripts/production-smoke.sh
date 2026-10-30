@@ -21,6 +21,7 @@ cleanup() {
 trap cleanup EXIT
 touch "$INFRADECK_CONFIG_DIR/api.env" "$INFRADECK_CONFIG_DIR/migration.env"
 "${compose[@]}" build
+docker run --rm infradeck-proxy:verification -G -F /dev/null proxy.invalid >/dev/null
 docker run --rm -i --user 0:0 -e "HOST_UID=$(id -u)" -e "HOST_GID=$(id -g)" -v "$INFRADECK_CONFIG_DIR:/keys" \
     infradeck-api:verification python - <<'PY'
 import os
@@ -71,8 +72,8 @@ with psycopg.connect(os.environ['INFRADECK_DATABASE_URL']) as db:
     assert db.execute("SELECT rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user").fetchone() == (False, False, False)
     assert db.execute("SELECT has_schema_privilege(current_user, 'public', 'CREATE')").fetchone() == (False,)
 PY
-curl --fail --silent http://127.0.0.1:18080/ | grep -q 'id="root"'
-curl --fail --silent http://127.0.0.1:18080/projects/example | grep -q 'id="root"'
-curl --fail --silent http://127.0.0.1:18080/api/health | grep -q 'ok'
+curl --fail --silent --show-error --max-time 10 http://127.0.0.1:18080/ | grep -q 'id="root"'
+curl --fail --silent --show-error --max-time 10 http://127.0.0.1:18080/projects/example | grep -q 'id="root"'
+curl --fail --silent --show-error --max-time 10 http://127.0.0.1:18080/api/health | grep -q 'ok'
 test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/api/auth/me)" = 401
 echo 'Production images, migrations, least-privilege DB role, SPA and API smoke passed'
