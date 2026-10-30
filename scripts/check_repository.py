@@ -9,8 +9,8 @@ import subprocess
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_ROOTS = {".agents", ".agent-skills-lab", ".github", "docs", "scripts", "tests"}
-ALLOWED_FILES = {"README.md", "AGENTS.md", "CONTRIBUTING.md", ".gitignore", "Makefile"}
+ALLOWED_ROOTS = {".agents", ".agent-skills-lab", ".github", "docs", "scripts", "tests", "contracts", "deploy"}
+ALLOWED_FILES = {"README.md", "AGENTS.md", "CONTRIBUTING.md", ".gitignore", ".dockerignore", "Makefile", "pyproject.toml", "uv.lock", ".env.example", ".python-version"}
 
 
 def branch_policy(event, repository):
@@ -30,7 +30,8 @@ def branch_policy(event, repository):
 def inventory_errors(paths):
     return [f"Unregistered runtime/path: {p}; add component tests and update CI/matrix"
             for p in paths
-            if Path(p).parts[0] not in ALLOWED_ROOTS and p not in ALLOWED_FILES]
+            if Path(p).parts[0] not in ALLOWED_ROOTS and p not in ALLOWED_FILES
+            and not p.startswith(("apps/web/", "services/control-plane/"))]
 
 
 def check_repository(root):
@@ -67,9 +68,9 @@ def check_repository(root):
             resolved = doc.parent / unquote(target.split("#")[0])
             if not resolved.exists():
                 errors.append(f"Broken local link: {doc.relative_to(root)} -> {target}")
-    for path in root.rglob("*.json"):
-        if ".git" not in path.parts:
-            json.loads(path.read_text())
+    for relative in paths:
+        if relative and relative.endswith(".json"):
+            json.loads((root / relative).read_text())
     for path in paths:
         if path and (Path(path).name.startswith(".env") and path != ".env.example"
                      or Path(path).suffix in {".key", ".pem"}):

@@ -5,12 +5,12 @@
 обязательные checks, PR-процесс, запреты direct/force push сохраняются.
 Если общий delivery snapshot требует иного approval, применяется это уточнение.
 
-Сейчас проект на стадии bootstrap. Требования — docs/product.md, архитектура
-proposed — docs/architecture.md и docs/adr/0001-initial-architecture.md.
+Первый релиз реализуется в apps/web и services/control-plane. Требования —
+docs/product.md, архитектура — docs/architecture.md и docs/adr/0002-first-release.md.
 Безопасность — docs/security.md. Матрица реальных и будущих checks — docs/quality.md.
 Не выдавать планируемый функционал или tests за реализованные.
-UI — React/TypeScript/FSD; backend и agent — Python; PostgreSQL — предложение
-до реализации runtime. Добавление runtime требует одновременно тестов и CI.
+UI — React/TypeScript/FSD/Tailwind; backend — Python/FastAPI, PostgreSQL 17.
+Agent пока отсутствует. Добавление runtime требует одновременно тестов и CI.
 Секреты, SSH доступы, адреса production и key material не коммитить.
 Не менять другие проекты и не использовать их credentials.
 

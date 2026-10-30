@@ -1,0 +1,39 @@
+# Overlay for an operator-provided production Compose with private network.
+# No public ports. The operator supplies a separately built/pinned SSH image.
+services:
+  telegram-proxy:
+    image: ${INFRADECK_SSH_IMAGE:?set immutable SSH client image digest}
+    restart: unless-stopped
+    read_only: true
+    user: "65532:65532"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    command:
+      - ssh
+      - -NT
+      - -i
+      - /run/secrets/proxy_key
+      - -o
+      - UserKnownHostsFile=/run/secrets/proxy_known_hosts
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - ExitOnForwardFailure=yes
+      - -o
+      - ServerAliveInterval=30
+      - -o
+      - ServerAliveCountMax=3
+      - -L
+      - 0.0.0.0:19840:${INFRADECK_SQUID_ADDRESS:?set private Squid address}:3128
+      - ${INFRADECK_PROXY_SSH_TARGET:?set restricted SSH target}
+    secrets: [proxy_key, proxy_known_hosts]
+    networks: [telegram]
+secrets:
+  proxy_key:
+    file: ${INFRADECK_PROXY_KEY_FILE:?set outside-repository key path}
+  proxy_known_hosts:
+    file: ${INFRADECK_PROXY_KNOWN_HOSTS_FILE:?set verified host keys path}
+networks:
+  telegram:
