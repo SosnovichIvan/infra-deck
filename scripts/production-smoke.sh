@@ -10,13 +10,18 @@ export INFRADECK_SQUID_ADDRESS=squid.invalid
 export INFRADECK_PROXY_SSH_TARGET=restricted@proxy.invalid
 compose=(docker compose -p infradeck-production-smoke -f deploy/compose.production.yaml)
 cleanup() {
-    "${compose[@]}" --profile tools down -v --remove-orphans
+    status=$?
+    if [[ "$status" != 0 ]]; then
+        "${compose[@]}" logs --tail 80 || true
+    fi
+    "${compose[@]}" --profile tools down -v --remove-orphans || true
     rm -rf "$INFRADECK_CONFIG_DIR"
+    exit "$status"
 }
 trap cleanup EXIT
 touch "$INFRADECK_CONFIG_DIR/api.env" "$INFRADECK_CONFIG_DIR/migration.env"
 "${compose[@]}" build
-docker run --rm -i --user 0:0 -v "$INFRADECK_CONFIG_DIR:/keys" \
+docker run --rm -i --user 0:0 -e "HOST_UID=$(id -u)" -e "HOST_GID=$(id -g)" -v "$INFRADECK_CONFIG_DIR:/keys" \
     infradeck-api:verification python - <<'PY'
 import os
 from pathlib import Path
@@ -45,7 +50,10 @@ for name, role in [('api.env', 'app'), ('migration.env', 'owner')]:
     (root / name).write_text(common + f'INFRADECK_DATABASE_URL=postgresql://infradeck_{role}:synthetic-only-password@db/infradeck\n')
 for path in root.iterdir():
     uid = 70 if path.name.startswith('db_') else 10001
-    os.chown(path, uid, uid)
+    gid = uid
+    if path.name.endswith('.env'):
+        uid, gid = int(os.environ['HOST_UID']), int(os.environ['HOST_GID'])
+    os.chown(path, uid, gid)
     path.chmod(0o600)
 PY
 "${compose[@]}" up -d --wait db
