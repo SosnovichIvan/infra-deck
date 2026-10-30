@@ -128,6 +128,9 @@ deploy lock, строит images только из release checkout, делае�
 к самому control plane, proxy management IP, metadata и private адресам. Это не затрагивает
 внутренние DB/proxy связи или остальные containers; правила восстанавливает systemd unit
 после Docker restart. Для private VM потребуется явно согласовать allowed routes и firewall.
+Одна source-scoped chain подключена и к INPUT (сам Docker host), и к DOCKER-USER
+(forwarded traffic). Regression test выполняет реальные local TCP connections
+в отдельном disposable Linux netns, проверяя блокировку только API source и идемпотентность.
 Production credentials/keys никогда не попадают в build context. При неудаче
 миграции новая API не запускается; DDL forward-only. Ошибки следующих шагов не
 обещают автоматического rollback: повторить исправленный release либо восстановить

@@ -31,6 +31,8 @@ jobs:
       - run: make check
       - run: docker compose -p infradeck-validation -f deploy/compose.dev.yaml config -q
       - run: sh -n scripts/e2e.sh
+      - run: bash -n scripts/test-egress.sh
+      - run: sudo unshare --net bash scripts/test-egress.sh
       - name: Validate private proxy template
         env:
           INFRADECK_SSH_IMAGE: ssh-client:validation-only
