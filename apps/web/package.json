@@ -1,0 +1,50 @@
+{
+  "name": "@infradeck/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "lint": "prettier --check src cypress vite.config.ts cypress.config.ts eslint.config.js tsconfig.json package.json && eslint src && node ../../scripts/check-frontend.mjs",
+    "test": "vitest run --coverage",
+    "e2e": "cypress run",
+    "verify-build": "vite build --outDir .verification",
+    "generate": "openapi-typescript ../../contracts/openapi.json -o src/shared/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-select": "^2.2.6",
+    "@tanstack/react-query": "^5.90.5",
+    "jose": "^6.1.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/coverage-v8": "^5.0.5",
+    "cypress": "^15.5.0",
+    "eslint": "^9.38.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "jsdom": "^27.0.1",
+    "openapi-typescript": "^7.10.1",
+    "prettier": "^3.9.10",
+    "tailwindcss": "^4.1.14",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
+    "vite": "^7.1.10",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=24.12.0 <25"
+  }
+}

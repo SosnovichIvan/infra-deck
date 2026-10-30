@@ -38,7 +38,7 @@ class BranchPolicyTests(unittest.TestCase):
             policy.branch_policy({}, "SosnovichIvan/infra-deck")
 
     def test_new_runtime_cannot_use_bootstrap_checks(self):
-        for path in ["apps/web/package.json", "services/agent/main.py", "infra/compose.yaml", "unknown.go"]:
+        for path in ["apps/unknown/package.json", "services/agent/main.py", "infra/compose.yaml", "unknown.go"]:
             with self.subTest(path=path):
                 self.assertTrue(policy.inventory_errors([path]))
 
@@ -53,7 +53,7 @@ class AggregateGateTests(unittest.TestCase):
         return subprocess.run([sys.executable, "-c", code], env={**os.environ, "RESULTS": json.dumps(results)}, capture_output=True).returncode
 
     def test_only_full_success_is_accepted(self):
-        good = {name: {"result": "success"} for name in ("branch-policy", "repository", "workflows")}
+        good = {name: {"result": "success"} for name in ("branch-policy", "repository", "workflows", "backend", "frontend", "e2e", "production-smoke")}
         self.assertEqual(self.run_gate(good), 0)
         for name in good:
             for status in ("failure", "cancelled", "skipped", "unknown"):
@@ -62,3 +62,17 @@ class AggregateGateTests(unittest.TestCase):
                     self.assertNotEqual(self.run_gate(bad), 0)
         self.assertNotEqual(self.run_gate({}), 0)
         self.assertNotEqual(self.run_gate({"repository": {"result": "success"}}), 0)
+
+
+class CoveragePolicyTests(unittest.TestCase):
+    def test_lines_and_branches_are_independently_required(self):
+        import tempfile
+        root=Path(__file__).resolve().parents[1]
+        for lines,branches,expected in [(100,100,0),(89,100,1),(100,89,1),(0,0,1)]:
+            with tempfile.TemporaryDirectory() as directory:
+                report=Path(directory)/'coverage.json'
+                report.write_text(json.dumps({'totals':{'covered_lines':lines,
+                    'num_statements':100,'covered_branches':branches,'num_branches':100}}))
+                result=subprocess.run([sys.executable,str(root/'scripts/check_coverage.py'),
+                    str(report)],capture_output=True)
+                self.assertEqual(bool(result.returncode),bool(expected))

@@ -1,36 +1,48 @@
 # Матрица PR-проверок
 
-Текущая фаза — bootstrap. Единственный обязательный status context:
-`Quality gate`, источник GitHub Actions. Он зависит от Branch policy,
-Repository checks и Workflow validation и требует success каждого job;
-failure/cancelled/skipped не дают зелёный gate. Workflow работает на каждом PR
-в develop/main, без paths filters, и вручную для проверки настройки.
+Обязательный status context: `Quality gate` от GitHub Actions. Он требует success
+всех jobs: Branch policy, Repository checks, Workflow validation, Backend and
+PostgreSQL, Frontend, Cypress integration, Production container smoke. Failure/cancelled/skipped/unknown
+отклоняются отдельным тестируемым aggregate. Никаких path filters и production
+secrets. Собственный PR владельца можно сливать без чужого approval; checks
+по-прежнему обязательны. Remote rulesets перечитаны 2026-10-27: active на
+main/develop, Quality gate App15368, no force/delete, review-only owner exception.
 
-| Компонент / root | Статус | Проверки / зависимости | Coverage | Gate |
-| --- | --- | --- | --- | --- |
-| Документация и rules | implemented | make check: JSON, локальные ссылки своих docs, skills presence, inventory, unittest, git diff --check; Python 3.12+ | N/A — не продуктовый runtime | Repository checks → Quality gate |
-| GitHub Actions | implemented | actionlint 1.7.7; pin checkout SHA; read-only token; без deploy/secrets | N/A — YAML | Workflow validation → Quality gate |
-| Web apps/web | planned, отсутствует | Lint/types, Vitest/component, Cypress через test backend, FSD import graph; locked Node/toolchain | ≥90% lines/branches отдельно | Добавить до первого runtime PR |
-| API + worker services/control-plane | planned, отсутствует | Ruff/mypy, pytest API и worker, PostgreSQL integration, OpenAPI client diff, restart/retry | ≥90% lines/branches | Добавить до первого runtime PR |
-| Agent services/agent | planned, отсутствует | Lint/types/unit, mTLS/contract, upgrade и SSH install на ephemeral VM | ≥90% lines/branches отдельно | Добавить до первого runtime PR |
-| DB migrations | planned, отсутствуют | PostgreSQL, empty/populated upgrade, constraints, tenant isolation, drift/recovery | DDL N/A; migrator/repository ≥90% | Добавить вместе с backend |
-| Contracts и infra | planned, отсутствуют | Schema compatibility, config/shell validators, isolated startup/health, Grafana isolation | Собственная runtime-логика по правилам delivery | Добавить при реализации |
+| Root | Команды | Зависимости / evidence | Coverage / gate |
+| --- | --- | --- | --- |
+| docs, rules, scripts/tests | make check | Python3.12+, inventory, links, manifests, JSON, branch/gate/coverage-negative tests | Runtime metrics N/A для docs; Repository checks |
+| services/control-plane/src | make backend | uv0.13.6, Python3.12, Ruff/mypy, pytest API/Identity/Inventory/crypto, PostgreSQL17, real ephemeral SSH, controlled Telegram HTTP transport | >=90% lines и branches независимо; Backend and PostgreSQL |
+| PostgreSQL migrations | тот же pytest | Новая схема upgrade001, повтор с данными, composite FK/unique/cascade, concurrent OTP/proof consume | DDL инварианты, SQL coverage N/A; Backend |
+| apps/web/src | make frontend | Node24.12.0, npm lock; ESLint/TS/FSD/cycle/name checks, Vitest5 V8, Testing Library | >=90% lines/branches; весь src включая main и неимпортированные файлы |
+| API contracts | export_openapi.py + npm run generate | OpenAPI Pydantic и generated TS diff проверяются в CI | Generated d.ts не исполняется; Backend + Frontend |
+| apps/web/cypress + test harness | make e2e | Настоящие API/PostgreSQL17/Telegram adapter до local HTTP stub, ephemeral SSH; browser Electron, никаких intercept-success API | Cypress integration, обязательный |
+| .github/workflows | actionlint1.7.7 | pinned full action SHAs, contents:read, timeouts, healthchecks | Workflow validation |
+| deploy | scripts/production-smoke.sh; bash/sh syntax | Изолированные production images, PostgreSQL17 с ролями owner/app, повторная migration, health, SPA fallback, API401; proxy image только build, без внешних connections | Production container smoke, обязательный; bot/SSH синтетические, secrets отсутствуют |
 
-Команды bootstrap определены в Makefile. Whitespace проверяется на PR diff;
-неизменённые внешние snapshots skills исключены из этой проверки (в исходнике
-есть trailing whitespace), их целостность проверяется SHA-256 manifest. Код внутри установленных skills —
-внешние инструменты агента, не runtime продукта; он не выдаётся за протестированное
-приложение. CI отклоняет новый путь за пределами текущего bootstrap allowlist;
-при добавлении компонентов надо одновременно расширить scope и реальные jobs.
+Frontend exclusions: generated/non-executable *.d.ts, *.test.ts(x) и test-setup.ts;
+не исключаются main, API client, страницы и компоненты. JSON coverage summary
+содержит все исходники (text reporter может скрывать файлы со 100%).
+Backend coverage.py7: source=infradeck, branch=true, без исключения модулей;
+check_coverage.py отдельно сверяет точные отношения, округлённый combined coverage
+не является достаточным. Нулевой denominator — ошибка, не 100%.
 
-Пока нет runtime, product tests, нагрузочные тесты и product coverage — planned,
-не «пройдены». Секреты production, внешние VPS и publish в PR запрещены.
-Release workflow пока отсутствует, выпуск невозможен; будущий релиз допускается
-только по immutable MAJOR.MINOR.PATCH tag на коммите из актуальной main.
+Cypress критический путь: регистрация → Telegram /start webhook → отправка OTP
+через реальный Bot API adapter в локальный stub → ввод кода → проекты CRUD →
+fingerprint/trust/SSH authentication → серверы CRUD/recheck → logout/login.
+Mobile390 и dark/light смена, keyboard Select/Escape проверяются компонентами.
+Отдельные backend tests проверяют Telegram forbidden/rate-limit/failure/proxy
+ошибки, update replay и permissions; UI тесты их не заменяют.
 
-Защита хранится в .github/rulesets/*.json: отдельный ruleset с PR без bypass,
-checks, resolution, запретами force push/deletion и отдельный review ruleset
-с исключением владельца только через PR. Исключение GitHub привязано к actor,
-поэтому технически действует и на чужие PR, которые он сливает; правила проекта
-разрешают применять его только к собственным PR. Проверки обходить нельзя.
-Результаты настройки записываются в docs/bootstrap-verification.md.
+Миграция001 создаёт новую схему: предыдущего runtime не было. Для новой версии
+добавляется новый SQL, применённый 001 не редактируется. Upgrade на пустой БД и
+повторный upgrade с сохранением данных входят в tests; restore общей БД не
+выполнялся. RLS не используется: изоляцию обеспечивает owner-scoped application
+API и composite FK; не выдаётся за проверенную RLS-policy.
+
+Локальные результаты и удалённый CI фиксируются в [verification](verification.md).
+Production acceptance (собственный bot, HTTPS webhook, private proxy, KEK backup
+и разрешённый VPS) отдельно от synthetic PR tests и пока не выполнена.
+Релизные wheel/static artifacts и production deployment запускаются workflow
+release.yml по MAJOR.MINOR.PATCH tag коммита из main. Deploy требует repository
+variable INFRADECK_DEPLOY_ENABLED=true и production SSH secrets; использует
+отдельный ключ и pinned known_hosts. Обычный PR делает только verification build.

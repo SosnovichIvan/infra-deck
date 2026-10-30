@@ -1,52 +1,50 @@
-# Безопасность
+# Безопасность первого релиза
 
-Это требования к реализации, а не заявление о готовой защите приложения.
+Пароли: Argon2id (64 MiB, time_cost=3, parallelism=4), уникальный login,
+подтверждение не сохраняется. Production параметры следует измерить на целевой VM.
+Логин и пароль защищает HTTPS. SSH-реквизиты дополнительно передаются JWE
+RSA-OAEP-256/A256GCM (jose/jwcrypto): published kid и одноразовый session nonce,
+60 секунд, max envelope size; неизвестные алгоритмы/ключи отклоняются.
 
-Учётные записи: login + password, registration дополнительно password confirmation.
-Пароли хешируются Argon2id с индивидуальной salt; параметры выбираются и
-проверяются на целевой машине. Подтверждение пароля не сохраняется.
-Сессии серверные, cookie Secure/HttpOnly/SameSite, rotation и expiry;
-state-changing запросы защищаются от CSRF. Rate limit входа/регистрации,
-ограничение длины входов и одинаковые ошибки аутентификации.
+Cookie session — случайный 256-bit token, в БД только SHA256; Secure в production,
+HttpOnly, SameSite=Strict, rotation после OTP; full TTL 12h, preauth 10min.
+CSRF: server-bound token + strict Origin на mutation. Reverse proxy должен
+ограничивать body и rate по IP, не доверять публичным X-Forwarded-For.
+Код Telegram: CSPRNG 8 цифр включая начальный ноль, HMAC с отдельным secret вне
+БД, TTL30 после успешной отправки, 5 попыток под row lock. Resend 30s, 5/5min,
+общий бюджет не сбрасывается. Ошибка отправки не создаёт активный challenge.
+До проверки нет full session. Повторный login отзывает предыдущие pending
+challenges; logout инвалидирует серверную сессию. Recovery codes HMAC, one-use,
+только после проверки пароля; коды не логируются.
 
-Передача: HTTPS для всего browser API. Логин и пароль входа защищены TLS;
-самодельное browser hashing не заменяет хеширование пароля на сервере.
-Для SSH/API credentials применяется дополнительно стандартный JWE envelope
-через проверенную библиотеку и опубликованный versioned public encryption key.
-Алгоритмы allowlisted, key ID/expiry проверяются, request ID и tenant связываются
-с authenticated request и защищаются от replay. Ключ API не хранится в JS как
-секрет. Этот слой не защищает от XSS и не является E2E от самого backend:
-worker должен расшифровать credential для выполнения разрешённой операции.
+Telegram /start привязывает только numeric ID из личного чата после проверки
+webhook secret header. Enrollment link действует 10min и one-use; update ID
+дедуплицируется в PostgreSQL. Смена Telegram-привязки не предоставляется в v1.
+Production Telegram обязательно идёт через явный HTTP CONNECT proxy (TLS
+verification сохраняется), без прямого fallback. См. [runbook](operations.md).
 
-Хранение: envelope encryption с AEAD, отдельный data key, key version и AAD
-(tenant/host/credential ID). KEK находится в KMS/Vault вне БД и её backups.
-Backend получает минимум права decrypt по роли; frontend получает только
-masked metadata. Нужны rotation, revoke, re-encryption и restore test с KMS.
-Нельзя хранить plaintext, общий статический ключ в Git или secrets в логах,
-traces, errors, crash dumps и тестовых артефактах. Backups зашифрованы отдельно.
+At rest: случайный AES256 DEK для каждой записи; ciphertext и wrapped DEK в
+БД, AES256 KEK отдельно файлом; AAD owner/project/server. Version1 adapter —
+файловый KEK, не Vault/KMS. RSA/KEK/OTP key files вне Git/образов/БД, mode0600.
+Не терять ключи: DB backup без них не позволяет восстановить реквизиты.
+Операторская ротация KEK/KMS — отдельная задача до соответствующего production
+rollout; не перегенерировать ключи при обновлении контейнера.
 
-Установка агента: адрес/порт/SSH account проходят policy validation; host key
-pinning, сверка fingerprint по доверенному каналу. Worker изолирован от
-control-plane credentials, cloud metadata endpoints и внутренних management
-сетей; private VM допускаются только через явную network policy. Запрещены
-shell interpolation и blind trust-on-first-use. Доступ bootstrap ограничен
-установкой конкретного проверенного пакета; root не используется для постоянной
-работы агента. Обновления подписаны, версия и digest проверяются.
+SSH: fingerprint без authentication, явная сверка пользователем по доверенному
+каналу, повторная проверка и pinned key при login. SSH config/agent выключены,
+системные ключи процесса не используются; команды не исполняются. 12s timeout,
+без retries. DNS-resolved IP фиксируется на соединение; loopback/link-local/
+multicast/metadata запрещены. Private VM разрешаются только explicit CIDR policy
+оператора. Firewall/egress deny на management/metadata сети требуется также
+на уровне deployment. Повторная проверка использует сохранённый pinned key.
+Обновление connection требует нового confirmed fingerprint и proof (120s).
 
-Agent: одноразовый короткоживущий enrollment token, привязка tenant/host,
-mTLS после enrollment, rotation/revocation, persistent command IDs и replay
-protection. Исходящее соединение облегчает NAT/private VM. Привилегированные
-операции выделены в минимальный helper с allowlist; метрики работают без root.
+Owner проверяется на всех project/server API; composite FK не допускает чужой
+project. API response models не содержат ciphertext/private keys/passwords.
+Validation и network errors возвращают очищенные сообщения. Request bodies,
+Telegram text, cookies и secret env не должны попадать в proxy/APM logs.
+Серверные журналы uvicorn access_log отключены в команде запуска из runbook.
 
-Grafana: dashboard UID не является авторизацией. Backend проверяет tenant,
-ограничивает datasource queries и не отправляет Grafana admin tokens в browser.
-Начальный вариант — авторизованная ссылка; iframe только после отдельной
-проверки SSO, CSP/frame policy и изоляции данных. Anonymous dashboards запрещены.
-
-Миграция: права на оба узла, preflight, подтверждение плана, secret references,
-backup/restore evidence и точка cutover. Не удалять source до проверки target
-и истечения retention. Stateful данные требуют отдельного consistency protocol.
-
-До выпуска обязательны негативные тесты: чужой tenant/host/dashboard,
-неверный host key, подмена команды, expired/replayed enrollment, утечка секретов,
-недоступный KMS, повтор cutover, отказ посередине операции и восстановление.
+Локальные tests используют synthetic bot token, local Telegram HTTP stub,
+изолированную PostgreSQL и ephemeral SSH, никакой production отправки.
+PR не делает deploy, publish, доступ к внешним VPS и production migration.
