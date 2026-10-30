@@ -70,11 +70,36 @@ test "$("${compose[@]}" exec -T db psql -U postgres -d infradeck_restore -tAc 'S
 "${compose[@]}" exec -T api python - <<'PY'
 import os
 import psycopg
+import hashlib
+import json
+import urllib.request
+import urllib.error
 assert os.getuid() == 10001
 with psycopg.connect(os.environ['INFRADECK_DATABASE_URL']) as db:
     assert db.execute('SELECT count(*) FROM projects').fetchone() == (0,)
     assert db.execute("SELECT rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user").fetchone() == (False, False, False)
     assert db.execute("SELECT has_schema_privilege(current_user, 'public', 'CREATE')").fetchone() == (False,)
+# The edge strips client-supplied XFF. Only the fixed web-proxy IP is trusted
+# by Uvicorn, so direct API requests cannot forge the rate-limit address.
+for base, forwarded in [('http://web:8080', '198.51.100.10'), ('http://127.0.0.1:8000', '203.0.113.10')]:
+    with urllib.request.urlopen(base + '/api/auth/csrf') as response:
+        csrf = json.load(response)['csrf']
+    request = urllib.request.Request(base + '/api/auth/login',
+        data=json.dumps({'login': 'smoke-user', 'password': 'synthetic-only-password'}).encode(),
+        headers={'Content-Type': 'application/json', 'Origin': 'https://localhost',
+            'Cookie': 'csrf=' + csrf, 'X-CSRF-Token': csrf, 'X-Forwarded-For': forwarded})
+    try:
+        urllib.request.urlopen(request)
+        raise AssertionError('Unknown user must not authenticate')
+    except urllib.error.HTTPError as response:
+        assert response.code == 401
+with psycopg.connect(os.environ['INFRADECK_DATABASE_URL']) as db:
+    def limited(ip):
+        scope = hashlib.sha256(('login-ip:' + ip).encode()).hexdigest()
+        return bool(db.execute('SELECT 1 FROM rate_limits WHERE scope=%s', (scope,)).fetchone())
+    assert limited('198.51.100.10')
+    assert limited('127.0.0.1')
+    assert not limited('203.0.113.10')
 PY
 curl --fail --silent --show-error --max-time 10 http://127.0.0.1:18080/ | grep -q 'id="root"'
 curl --fail --silent --show-error --max-time 10 http://127.0.0.1:18080/projects/example | grep -q 'id="root"'

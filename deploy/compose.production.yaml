@@ -32,6 +32,8 @@ services:
     image: infradeck-api:${RELEASE_TAG:?verified version tag required}
     build: {context: .., dockerfile: deploy/api.Dockerfile}
     env_file: ["${INFRADECK_CONFIG_DIR:?outside-repository config directory}/api.env"]
+    environment:
+      FORWARDED_ALLOW_IPS: ${INFRADECK_WEB_INTERNAL_IP:-172.29.41.20}
     secrets: [kek, rsa, otp]
     tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
     networks:
@@ -64,7 +66,9 @@ services:
     build: {context: .., dockerfile: deploy/web.Dockerfile}
     ports: ["127.0.0.1:18080:8080"]
     tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
-    networks: [frontend, edge]
+    networks:
+      frontend: {ipv4_address: "${INFRADECK_WEB_INTERNAL_IP:-172.29.41.20}"}
+      edge:
     depends_on:
       api: {condition: service_healthy}
     healthcheck:
@@ -119,7 +123,10 @@ volumes:
   database:
 networks:
   database: {internal: true}
-  frontend: {internal: true}
+  frontend:
+    internal: true
+    ipam:
+      config: [{subnet: "${INFRADECK_FRONTEND_SUBNET:-172.29.41.0/24}"}]
   telegram: {internal: true}
   edge:
   egress:

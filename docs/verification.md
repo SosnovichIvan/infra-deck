@@ -29,7 +29,9 @@ production HTTPS, VPS credentials/network policy, restore backup с key files,
 Локально scripts/production-smoke.sh прошёл на синтетических данных: сборка API/web/proxy,
 инициализация PostgreSQL17 с раздельными ролями, двукратная migration, чтение таблиц
 ролью app без superuser/CREATEDB/CREATEROLE/CREATE schema, API UID10001, web health,
-SPA fallback и HTTP401 для /api/auth/me. SSH proxy image дополнительно проверен
+SPA fallback и HTTP401 для /api/auth/me. Дополнительно прошли pg_dump/pg_restore
+в отдельную БД и проверка rate-limit IP: web proxy доверен, direct API не принимает
+поддельный forwarded IP. SSH proxy image дополнительно проверен
 через ssh -G без внешнего подключения. Production container smoke включён в Quality gate.
 make check (9 tests), actionlint1.7.7 и shell syntax checks прошли. Эти проверки
 не являются доказательством реальной Telegram-доставки или production deployment.

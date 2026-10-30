@@ -57,8 +57,8 @@ server {
     location / {
         proxy_pass http://127.0.0.1:18080;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For "";
-        proxy_set_header X-Forwarded-Proto "";
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
         proxy_connect_timeout 5s;
         proxy_read_timeout 40s;
     }

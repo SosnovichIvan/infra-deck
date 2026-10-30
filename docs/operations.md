@@ -88,6 +88,9 @@ secret_token равным INFRADECK_TELEGRAM_WEBHOOK_SECRET и allowed_updates=[
 публикует только loopback18080; host nginx принимает HTTPS. API/web/tunnel работают
 без root, read-only и без capabilities; PostgreSQL, API и proxy port не публикуются.
 DB init создаёт отдельные роли owner для миграций и app с DML без CREATE/superuser.
+Host nginx заменяет входящие X-Forwarded-* на проверенный client IP/HTTPS; внутренний
+web передаёт их API. Uvicorn доверяет только закреплённому IP web в private frontend
+network, поэтому rate limits разделяют клиентов и direct API не может подделать IP.
 PR smoke проверяет те же Dockerfiles на синтетических credentials; proxy не подключает.
 
 Оператор устанавливает docker.io, docker-compose-v2, nginx, git, openssl и ca-certificates.
