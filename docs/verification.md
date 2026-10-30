@@ -33,4 +33,3 @@ SPA fallback и HTTP401 для /api/auth/me. SSH proxy image дополните�
 через ssh -G без внешнего подключения. Production container smoke включён в Quality gate.
 make check (9 tests), actionlint1.7.7 и shell syntax checks прошли. Эти проверки
 не являются доказательством реальной Telegram-доставки или production deployment.
-
