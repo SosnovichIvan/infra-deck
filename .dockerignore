@@ -1,0 +1,14 @@
+# Keep credentials, dependencies and test artifacts outside every image context.
+.git
+.agents
+.runtime
+.verification
+.venv
+**/node_modules
+**/dist
+**/coverage
+**/cypress
+.env*
+**/*.pem
+**/*.key
+**/__pycache__

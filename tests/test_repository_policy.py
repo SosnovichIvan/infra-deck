@@ -53,7 +53,7 @@ class AggregateGateTests(unittest.TestCase):
         return subprocess.run([sys.executable, "-c", code], env={**os.environ, "RESULTS": json.dumps(results)}, capture_output=True).returncode
 
     def test_only_full_success_is_accepted(self):
-        good = {name: {"result": "success"} for name in ("branch-policy", "repository", "workflows", "backend", "frontend", "e2e")}
+        good = {name: {"result": "success"} for name in ("branch-policy", "repository", "workflows", "backend", "frontend", "e2e", "production-smoke")}
         self.assertEqual(self.run_gate(good), 0)
         for name in good:
             for status in ("failure", "cancelled", "skipped", "unknown"):

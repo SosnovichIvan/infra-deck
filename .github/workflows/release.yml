@@ -4,6 +4,9 @@ on:
     tags: ['*.*.*']
 permissions:
   contents: read
+concurrency:
+  group: infradeck-release
+  cancel-in-progress: false
 jobs:
   package:
     runs-on: ubuntu-24.04
@@ -46,3 +49,31 @@ jobs:
           name: infradeck-${{ github.ref_name }}
           path: dist/
           retention-days: 30
+  deploy:
+    name: Deploy verified release to VPS
+    needs: package
+    if: ${{ vars.INFRADECK_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: production
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+      VPS_HOST: ${{ secrets.INFRADECK_VPS_HOST }}
+      DEPLOY_KEY: ${{ secrets.INFRADECK_DEPLOY_SSH_KEY }}
+      KNOWN_HOSTS: ${{ secrets.INFRADECK_DEPLOY_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Deploy with pinned SSH host key
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          directory="$(mktemp -d)"
+          trap 'rm -rf "$directory"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$directory/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$directory/known_hosts"
+          options=(-i "$directory/key" -o "UserKnownHostsFile=$directory/known_hosts" -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=15)
+          scp "${options[@]}" deploy/release.sh "root@$VPS_HOST:/root/infradeck-release.sh"
+          ssh "${options[@]}" "root@$VPS_HOST" "bash /root/infradeck-release.sh '$RELEASE_TAG'"

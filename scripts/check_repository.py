@@ -10,7 +10,7 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_ROOTS = {".agents", ".agent-skills-lab", ".github", "docs", "scripts", "tests", "contracts", "deploy"}
-ALLOWED_FILES = {"README.md", "AGENTS.md", "CONTRIBUTING.md", ".gitignore", "Makefile", "pyproject.toml", "uv.lock", ".env.example", ".python-version"}
+ALLOWED_FILES = {"README.md", "AGENTS.md", "CONTRIBUTING.md", ".gitignore", ".dockerignore", "Makefile", "pyproject.toml", "uv.lock", ".env.example", ".python-version"}
 
 
 def branch_policy(event, repository):

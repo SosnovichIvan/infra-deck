@@ -1,0 +1,126 @@
+name: infradeck
+x-runtime: &runtime
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_admin_password
+    secrets: [db_admin_password, db_owner_password, db_app_password]
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/01-infradeck.sh:ro
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d infradeck"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  api:
+    <<: *runtime
+    image: infradeck-api:${RELEASE_TAG:?verified version tag required}
+    build: {context: .., dockerfile: deploy/api.Dockerfile}
+    env_file: ["${INFRADECK_CONFIG_DIR:?outside-repository config directory}/api.env"]
+    secrets: [kek, rsa, otp]
+    tmpfs: [/tmp:rw,noexec,nosuid,size=32m]
+    networks:
+      database:
+      frontend:
+      telegram:
+      egress: {ipv4_address: "${INFRADECK_API_EGRESS_IP:-172.29.40.10}"}
+    depends_on:
+      db: {condition: service_healthy}
+      telegram-proxy: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  migrate:
+    <<: *runtime
+    image: infradeck-api:${RELEASE_TAG:?verified version tag required}
+    restart: "no"
+    profiles: [tools]
+    env_file: ["${INFRADECK_CONFIG_DIR}/migration.env"]
+    command: [python, -m, infradeck.migrate]
+    secrets: [kek, rsa, otp]
+    networks: [database]
+    depends_on:
+      db: {condition: service_healthy}
+  web:
+    <<: *runtime
+    image: infradeck-web:${RELEASE_TAG:?verified version tag required}
+    build: {context: .., dockerfile: deploy/web.Dockerfile}
+    ports: ["127.0.0.1:18080:8080"]
+    tmpfs: [/tmp:rw,noexec,nosuid,size=32m]
+    networks: [frontend]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:8080/api/health]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  telegram-proxy:
+    <<: *runtime
+    image: infradeck-proxy:${RELEASE_TAG:?verified version tag required}
+    build: {context: .., dockerfile: deploy/proxy.Dockerfile}
+    command:
+      - -NT
+      - -i
+      - /run/secrets/proxy_key
+      - -o
+      - UserKnownHostsFile=/run/secrets/proxy_known_hosts
+      - -o
+      - StrictHostKeyChecking=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - BatchMode=yes
+      - -o
+      - ConnectTimeout=10
+      - -o
+      - ExitOnForwardFailure=yes
+      - -o
+      - ServerAliveInterval=30
+      - -o
+      - ServerAliveCountMax=3
+      - -L
+      - 0.0.0.0:19840:${INFRADECK_SQUID_ADDRESS:?private Squid host required}:3128
+      - ${INFRADECK_PROXY_SSH_TARGET:?restricted proxy SSH account required}
+    secrets: [proxy_key, proxy_known_hosts]
+    networks: [telegram, egress]
+    healthcheck:
+      test: [CMD, nc, -z, 127.0.0.1, "19840"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+secrets:
+  db_admin_password: {file: "${INFRADECK_CONFIG_DIR}/db_admin_password"}
+  db_owner_password: {file: "${INFRADECK_CONFIG_DIR}/db_owner_password"}
+  db_app_password: {file: "${INFRADECK_CONFIG_DIR}/db_app_password"}
+  kek: {file: "${INFRADECK_CONFIG_DIR}/kek"}
+  rsa: {file: "${INFRADECK_CONFIG_DIR}/rsa.pem"}
+  otp: {file: "${INFRADECK_CONFIG_DIR}/otp"}
+  proxy_key: {file: "${INFRADECK_CONFIG_DIR}/proxy_key"}
+  proxy_known_hosts: {file: "${INFRADECK_CONFIG_DIR}/proxy_known_hosts"}
+volumes:
+  database:
+networks:
+  database: {internal: true}
+  frontend: {internal: true}
+  telegram: {internal: true}
+  egress:
+    ipam:
+      config: [{subnet: "${INFRADECK_EGRESS_SUBNET:-172.29.40.0/24}"}]
