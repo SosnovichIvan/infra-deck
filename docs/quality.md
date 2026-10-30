@@ -17,7 +17,7 @@ main/develop, Quality gate App15368, no force/delete, review-only owner exceptio
 | API contracts | export_openapi.py + npm run generate | OpenAPI Pydantic и generated TS diff проверяются в CI | Generated d.ts не исполняется; Backend + Frontend |
 | apps/web/cypress + test harness | make e2e | Настоящие API/PostgreSQL17/Telegram adapter до local HTTP stub, ephemeral SSH; browser Electron, никаких intercept-success API | Cypress integration, обязательный |
 | .github/workflows | actionlint1.7.7 | pinned full action SHAs, contents:read, timeouts, healthchecks | Workflow validation |
-| deploy | scripts/production-smoke.sh; bash/sh syntax | Изолированные production images, PostgreSQL17 с ролями owner/app, повторная migration, health, SPA fallback, API401; proxy image только build, без внешних connections | Production container smoke, обязательный; bot/SSH синтетические, secrets отсутствуют |
+| deploy | scripts/production-smoke.sh; bash/sh syntax; scripts/test-egress.sh в unshare --net | Изолированные production images, PostgreSQL17 с ролями owner/app, migration/restore, health, SPA/API; firewall INPUT/FORWARD scope/idempotence в отдельном netns без внешней сети | Production container smoke и Repository checks; bot/SSH синтетические, secrets отсутствуют |
 
 Frontend exclusions: generated/non-executable *.d.ts, *.test.ts(x) и test-setup.ts;
 не исключаются main, API client, страницы и компоненты. JSON coverage summary
