@@ -33,7 +33,7 @@ services:
     build: {context: .., dockerfile: deploy/api.Dockerfile}
     env_file: ["${INFRADECK_CONFIG_DIR:?outside-repository config directory}/api.env"]
     secrets: [kek, rsa, otp]
-    tmpfs: [/tmp:rw,noexec,nosuid,size=32m]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
     networks:
       database:
       frontend:
@@ -63,7 +63,7 @@ services:
     image: infradeck-web:${RELEASE_TAG:?verified version tag required}
     build: {context: .., dockerfile: deploy/web.Dockerfile}
     ports: ["127.0.0.1:18080:8080"]
-    tmpfs: [/tmp:rw,noexec,nosuid,size=32m]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
     networks: [frontend]
     depends_on:
       api: {condition: service_healthy}
