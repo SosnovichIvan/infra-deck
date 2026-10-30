@@ -59,6 +59,28 @@ WantedBy=docker.service
 UNIT
 systemctl daemon-reload
 systemctl enable --now infradeck-egress.service
+bash deploy/backup.sh
+cat > /etc/systemd/system/infradeck-backup.service <<'UNIT'
+[Unit]
+Description=InfraDeck PostgreSQL backup
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/opt/infradeck/current/deploy/backup.sh
+UNIT
+cat > /etc/systemd/system/infradeck-backup.timer <<'UNIT'
+[Unit]
+Description=Daily InfraDeck PostgreSQL backup
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now infradeck-backup.timer
 docker image inspect "infradeck-api:$tag" "infradeck-web:$tag" "infradeck-proxy:$tag" \
     --format '{{.RepoTags}} {{.Id}}' > "/opt/infradeck/releases/$tag/images.txt"
 echo "InfraDeck $tag passed private and HTTPS health checks"

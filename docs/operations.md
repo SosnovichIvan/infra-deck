@@ -137,3 +137,9 @@ token-free Telegram HEAD через тот же proxy, getMe для провер
 регистрации тестового пользователя владельцем; это отдельная проверка от synthetic CI.
 Не помещать пароли/OTP в logs. Отдельно сохранять key material вне DB backup и VPS,
 проверять restore на изолированной БД, следить за результатами certificate timer.
+Timer infradeck-backup делает ежедневный PostgreSQL dump (14 дней хранения,
+root0700 directory/root0600 files) и проверяет читаемость архива pg_restore --list.
+PR smoke отдельно восстанавливает dump в одноразовую БД и сверяет schema version;
+это не является проверкой восстановления пользовательских production credentials.
+Автоматическая репликация DB backups за пределы VPS пока не настроена; оператору
+нужно переносить их в защищённое внешнее хранилище отдельно от резервной копии ключей.

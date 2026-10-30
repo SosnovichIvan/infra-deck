@@ -139,7 +139,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - run: bash -n deploy/release.sh deploy/configure-https.sh deploy/configure-egress.sh scripts/production-smoke.sh
+      - run: bash -n deploy/release.sh deploy/backup.sh deploy/configure-https.sh deploy/configure-egress.sh scripts/production-smoke.sh
       - run: sh -n deploy/init-db.sh
       - run: scripts/production-smoke.sh
   gate:

@@ -61,6 +61,10 @@ PY
 "${compose[@]}" --profile tools run --rm --no-deps migrate
 # Re-running the migration must preserve the already initialized schema.
 "${compose[@]}" --profile tools run --rm --no-deps migrate
+"${compose[@]}" exec -T db pg_dump -U postgres -Fc infradeck > "$INFRADECK_CONFIG_DIR/restore.dump"
+"${compose[@]}" exec -T db createdb -U postgres infradeck_restore
+"${compose[@]}" exec -T db pg_restore -U postgres -d infradeck_restore < "$INFRADECK_CONFIG_DIR/restore.dump"
+test "$("${compose[@]}" exec -T db psql -U postgres -d infradeck_restore -tAc 'SELECT version FROM schema_versions')" = 001.sql
 "${compose[@]}" up -d --no-deps --wait api
 "${compose[@]}" up -d --no-deps --wait web
 "${compose[@]}" exec -T api python - <<'PY'
